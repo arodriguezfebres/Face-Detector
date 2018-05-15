@@ -1,0 +1,211 @@
+<html>
+<head>
+<title>Face Detection Project</title>
+<link href='http://fonts.googleapis.com/css?family=Nunito:300|Crimson+Text|Droid+Sans+Mono' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" title="Default" href="styles/github.css">
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>  
+
+<link rel="stylesheet" href="highlighting/styles/default.css">
+<script src="highlighting/highlight.pack.js"></script>
+
+<style type="text/css">
+body {
+	margin: 0px;
+	width: 100%;
+	font-family: 'Crimson Text', serif;
+	font-size: 20px;
+	background: #fcfcfc;
+}
+h1 {
+	font-family: 'Nunito', sans-serif;
+	font-weight: normal;
+	font-size: 28px;
+	margin: 25px 0px 0px 0px;
+	text-transform: uppercase;
+
+}
+
+h2 {
+	font-family: 'Nunito', sans-serif;
+	font-weight: normal;
+	font-size: 32px;
+	margin: 15px 0px 35px 0px;
+	color: #333;	
+	word-spacing: 3px;
+}
+
+h3 {
+	font-family: 'Nunito', sans-serif;
+	font-weight: normal;
+	font-size: 26px;
+	margin: 10px 0px 10px 0px;
+	color: #333;
+	word-spacing: 2px;
+}
+h4 {
+	font-family: 'Nunito', sans-serif;
+	font-weight: normal;
+	font-size: 22px;
+	margin: 10px 0px 10px 0px;
+	color: #333;
+	word-spacing: 2px;
+}
+
+h5 {
+	font-family: 'Nunito', sans-serif;
+	font-weight: normal;
+	font-size: 18px;
+	margin: 10px 0px 10px 0px;
+	color: #111;
+	word-spacing: 2px;
+}
+
+p, li {
+	color: #444;
+}
+
+a {
+	color: #DE3737;
+}
+
+.container {
+	margin: 0px auto 0px auto;
+	width: 1160px;
+}
+
+#header {
+	background: #333;
+	width: 100%;
+}
+
+#headersub {
+	color: #ccc;
+	width: 960px;
+	margin: 0px auto 0px auto;
+	padding: 20px 0px 20px 0px;
+}
+
+.chart {
+	width: 480px;
+}
+.lol {
+	font-size: 16px;
+	color: #888;
+	font-style: italic;
+}
+.sep {
+	height: 1px;
+	width: 100%;
+	background: #999;
+	margin: 20px 0px 20px 0px;
+}
+.footer{
+	font-size: 16px;
+}
+.latex {
+	width: 100%;
+}
+
+.latex img {
+	display: block;
+	margin: 0px auto 0px auto;
+}
+
+pre {
+	font-family: 'Droid Sans Mono';
+	font-size: 14px;
+}
+
+table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+table td img {
+  text-align: center;
+  vertical-align: middle;
+}
+
+#contents a {
+}
+</style>
+<script type="text/javascript">
+    hljs.initHighlightingOnLoad();
+</script>
+</head>
+<body>
+<div id="header" >
+<div id="headersub">
+<h1>Adrian Rodriguez-Febres</h1>
+</div>
+</div>
+<div class="container">
+
+<h2> Project 5 / Face Detection with a Sliding Window</h2>
+
+<p> Facial detection is not a joke, but with the help of some histogram of gradients and a support vector machine classifier, it becomes relatively feasible. Who would win: A complicated face detector, or 1 CS boi?</p>
+
+<div style="clear:both">
+<h3>Part 1: Positive and Negative Features</h3>
+
+<p> Getting training features was relatively simple, especially positive features. The positive features were acquired by utilizing vl_hog on images of pure faces, and it produces a neat representation of what the 'average' face looks like, shown below. </p>
+
+<center>
+<img src="myHog.png" />
+<p style="font-size: 14px">If you squint your eyes, it kinda looks like a face!</p>
+</center>
+
+<p> Negative features are like positive features, except instead of vl_hog on images of pure faces, we want to do so on NON-faces. Also, non-faces were easier to detect than faces, so instead of taking a single sample from each image as we did in faces, we took 10000 samples over our number of images. So if we're talking technically, we know more what a face <code>DOES NOT</code> look like vs what a face <code>DOES</code> look like. <br><br> I'd put the code here, but it's like less than 12 lines total.</p>
+
+<h2>Training of our classifier</h2>
+<p>vl_svmtrain takes in our features, a matrix of the same size which holds scores for our features, and a lambda parameter on which it depends on for scoring. It takes 3 lines: One to declare lambda, one to declare the scoring array to be filled, and one to to call the vl_svmtrain. </p>
+
+<h2>Face Detector.jpg</h2>
+<p> This was the part I struggled with the most, hilariously enough, because I failed to get my sliding window dimensions right, resulting in several slightly hilarious failures. Example below:</p>
+
+<center>
+<img src="howDidI.png" />
+<p style="font-size: 14px">This is fine.</p>
+</center>
+
+<p> Eventually, after correcting my sliding window dimensions, I figured out multi-scales (which, in hindsight, should've taken me much less time than it did). I also ran into an odd issue where if I did not round my number of 'cells' to pass the window through, I'd get 0 detected faces to 0 bounding boxes when maximum suppresion occurs. The code I ended up with, which got me 92.3% precision, is displayed below.</p>
+
+<pre><code>
+    spaceSaver = (feature_params.template_size / feature_params.hog_cell_size);
+    
+    for index = 0.1 : 0.10 : 1
+        myScaled = imresize(img, index);
+        myHogFeats = vl_hog(myScaled, feature_params.hog_cell_size);
+        xCells = round(size(myScaled,2) / feature_params.hog_cell_size);
+        yCells = round(size(myScaled,1) / feature_params.hog_cell_size);
+        
+        for myY = 1 : yCells - (spaceSaver) + 1
+            for myX = 1 : xCells - (spaceSaver) + 1
+                myFeats = myHogFeats(myY:myY + (spaceSaver) - 1 , myX: myX + (spaceSaver) - 1, :);
+                myFeats = reshape(myFeats, [], 1);
+                myConfidence = (w' * myFeats + b);
+
+                if myConfidence > -0.8
+                    myXlow = (( (myX - 1) * feature_params.hog_cell_size / index) + 1);
+                    myYlow = (( (myY - 1) * feature_params.hog_cell_size / index) + 1);
+                    myXhigh = (myX + spaceSaver - 1) * feature_params.hog_cell_size / index;
+                    myYhigh = (myY + spaceSaver - 1) * feature_params.hog_cell_size / index;
+                    
+                    addMe = [myXlow, myYlow, myXhigh, myYhigh];
+                    addMeImage = {test_scenes(i).name};
+                    
+                    cur_confidences = [cur_confidences; myConfidence];
+                    cur_bboxes = [cur_bboxes; addMe];
+                    cur_image_ids = [cur_image_ids; addMeImage];
+                end
+            end
+        end
+</code></pre>
+
+<center>
+<img src="myPrecision.png" />
+</center>
+
+</div>
+</body>
+</html>
